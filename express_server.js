@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 
 app.set("view engine", "ejs");
 
@@ -16,7 +16,7 @@ const urlDatabase = {
 
 const generateRandomString = function() {
   let result = '';
-  const characters= 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const charLen = characters.length;
   for (let i = 0; i < 6; i++) {
     result += characters.charAt(Math.floor(Math.random() * charLen));
@@ -48,13 +48,26 @@ app.get("/urls/new", (req, res) => {
 
 app.post("/urls", (req, res) => {
   // Log the POST request body to the console
-  console.log(req.body);  
-  res.send("Ok");  
+  console.log(req.body);
+  let shortURL = generateRandomString();
+  urlDatabase[shortURL] = req.body.longURL;
+  res.redirect(`/urls/${shortURL}`);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render("urls_show", templateVars);
+});
+
+app.get("/u/:shortURL", (req, res) => {
+  const longURL = urlDatabase[req.params.shortURL];
+  // Send 404 status code if a client requests a non-existent shortURL
+  if (longURL === undefined) {
+    res.status(404);
+    res.send('This URL is invalid!');
+  } else {
+    res.redirect(longURL);
+  }
 });
 
 app.listen(PORT, () => {
