@@ -70,6 +70,12 @@ app.get("/u/:shortURL", (req, res) => {
   }
 });
 
+// Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
+app.post('/urls/:shortURL/delete', (req, res) => {
+  delete urlDatabase[req.params.shortURL];
+  res.redirect('/urls');
+});
+
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
