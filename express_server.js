@@ -141,12 +141,16 @@ app.get('/login', (req, res) => {
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   const user = findUserByEmail(email, users);
-  if (!user && !checkPassword(user, password)) {
+  if (!user) {
     res.status(403).send("Invalid username or password!");
-  } else {
-    res.cookie('user_id', user.id);
-    res.redirect("/urls");
   }
+  
+  if (!checkPassword(user, password)) {
+    res.status(403).send("Invalid username or password!");
+  }
+
+  res.cookie('user_id', user.id);
+  res.redirect("/urls");
 });
 
 // Implement the /logout endpoint to clear the user_id cookie
