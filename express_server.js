@@ -41,12 +41,21 @@ const generateRandomString = function() {
   return result;
 };
 
-// // Create an email lookup helper function to keep the code DRY
+// Create an email lookup helper function to keep the code DRY
 const findUserByEmail = function(userEmail, objDatabase) {
   for (const user in objDatabase) {
     if (objDatabase[user].email === userEmail) {
       return (objDatabase[user]);
     }
+  }
+};
+
+// Create a password lookup helper function to keep the code DRY
+const checkPassword = (user, password) => {
+  if (user.password === password) {
+    return true;
+  } else {
+    return false;
   }
 };
 
@@ -67,7 +76,7 @@ app.get("/urls", (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
   };
-  console.log(templateVars)
+  console.log(templateVars);
   res.render("urls_index", templateVars);
 });
 
@@ -78,7 +87,7 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
 });
 
-  // Log the POST request body to the console
+// Log the POST request body to the console
 app.post('/urls/new', (req, res) => {
   console.log(req.body);
   let shortURL = generateRandomString();
@@ -117,19 +126,30 @@ app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
   urlDatabase[shortURL] = longURL;
-  res.redirect(`/urls`);
+  res.redirect('/urls');
+});
+
+// Create a GET /login endpoint that responds with the login form template
+app.get('/login', (req, res) => {
+  const templateVars = {
+    user: users[req.cookies["user_id"]],
+  };
+  res.render('urls_login', templateVars);
 });
 
 // Add an endpoint to handle a POST to /login
 app.post('/login', (req, res) => {
-  console.log(req.body)
-  const usernameInput = req.body.user;
-  console.log(usernameInput)
-  res.cookie('user_id', usernameInput);
-  res.redirect("/urls");
+  const { email, password } = req.body;
+  const user = findUserByEmail(email, users);
+  if (!user && !checkPassword(user, password)) {
+    res.status(403).send("Invalid username or password!");
+  } else {
+    res.cookie('user_id', user.id);
+    res.redirect("/urls");
+  }
 });
 
-// Implement the /logout endpoint so that it clears the username cookie
+// Implement the /logout endpoint to clear the user_id cookie
 app.post('/logout', (req, res) => {
   res.clearCookie('user_id');
   res.redirect("/urls");
@@ -144,24 +164,25 @@ app.get('/register', (req, res) => {
 });
 
 // Create an endpoint that handles the registration form data
+// Handle registration errors
 app.post('/register', (req, res) => {
-  const newUserID = generateRandomString();
   const newUserEm = req.body.email;
   const newUserPw = req.body.password;
   if (!newUserEm || !newUserPw) {
     return res.status(400).send('Please enter a valid email address and password! ⛔');
-    
-  } 
-  if (findUserByEmail(newUserEm, users)) {
+  } else if (findUserByEmail(newUserEm, users)) {
     return res.status(400).send('This email address is already in use!');
   }
-    users[newUserID] = {
-      id: newUserID,
-      email: newUserEm,
-      password: newUserPw
-    };
-    res.cookie('user_id', newUserID);
-    res.redirect('/urls');
+
+  const newUserID = generateRandomString();
+  users[newUserID] = {
+    id: newUserID,
+    email: newUserEm,
+    password: newUserPw
+  };
+ 
+  res.cookie('user_id', newUserID);
+  res.redirect('/urls');
 });
 
 
