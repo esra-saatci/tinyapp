@@ -31,7 +31,6 @@ const users = {
 
 // Implement function to generate random string for short URLs
 // Declare all characters
-
 const generateRandomString = function() {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -42,6 +41,14 @@ const generateRandomString = function() {
   return result;
 };
 
+// // Create an email lookup helper function to keep the code DRY
+const findUserByEmail = function(userEmail, objDatabase) {
+  for (const user in objDatabase) {
+    if (objDatabase[user].email === userEmail) {
+      return (objDatabase[user]);
+    }
+  }
+};
 
 app.get("/", (req, res) => {
   res.send("Hello!");
@@ -60,6 +67,7 @@ app.get("/urls", (req, res) => {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
   };
+  console.log(templateVars)
   res.render("urls_index", templateVars);
 });
 
@@ -68,8 +76,10 @@ app.get("/urls/new", (req, res) => {
     user: users[req.cookies["user_id"]],
   };
   res.render("urls_new", templateVars);
+});
 
   // Log the POST request body to the console
+app.post('/urls/new', (req, res) => {
   console.log(req.body);
   let shortURL = generateRandomString();
   urlDatabase[shortURL] = req.body.longURL;
@@ -112,7 +122,9 @@ app.post("/urls/:shortURL", (req, res) => {
 
 // Add an endpoint to handle a POST to /login
 app.post('/login', (req, res) => {
-  const usernameInput = req.cookies["user_id"];
+  console.log(req.body)
+  const usernameInput = req.body.user;
+  console.log(usernameInput)
   res.cookie('user_id', usernameInput);
   res.redirect("/urls");
 });
@@ -136,15 +148,22 @@ app.post('/register', (req, res) => {
   const newUserID = generateRandomString();
   const newUserEm = req.body.email;
   const newUserPw = req.body.password;
-  users[newUserID] = {
-    id: newUserID,
-    email: newUserEm,
-    password: newUserPw
-  };
-  res.cookie('user_id', newUserID);
-  console.log(users);
-  res.redirect('/urls');
+  if (!newUserEm || !newUserPw) {
+    return res.status(400).send('Please enter a valid email address and password! ⛔');
+    
+  } 
+  if (findUserByEmail(newUserEm, users)) {
+    return res.status(400).send('This email address is already in use!');
+  }
+    users[newUserID] = {
+      id: newUserID,
+      email: newUserEm,
+      password: newUserPw
+    };
+    res.cookie('user_id', newUserID);
+    res.redirect('/urls');
 });
+
 
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
