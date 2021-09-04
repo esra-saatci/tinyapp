@@ -83,17 +83,20 @@ app.get("/hello", (req, res) => {
 
 app.get("/urls", (req, res) => {
   const userID = req.cookies['user_id'];
-
   const user = users[userID];
-  const templateVars = { urls:urlsForUser(userID), user };
-  console.log(templateVars);
-  res.render("urls_index", templateVars);
+  let templateVars = { urls:urlsForUser(userID), user };
+  
+  if (templateVars.user) {
+    res.render("urls_index", templateVars);
+  } else {
+    res.status(400).send("You need to login or register to access this page!");
+  }
 });
 
 app.get("/urls/new", (req, res) => {
   const userID = req.cookies["user_id"];
   if (!userID) {
-    return res.redirect('/login');
+    return res.status(403).send("You need to login or register to access this page!");
   }
   const templateVars = {
     user: users[req.cookies["user_id"]],
@@ -117,12 +120,12 @@ app.post('/urls/new', (req, res) => {
 
 app.get("/urls/:shortURL", (req, res) => {
   const userID = req.cookies["user_id"];
-  if (!userID) {
-    return res.redirect('/login');
-  }
   const user = users[userID];
   const shortURL = req.params.shortURL;
   const urlObj = urlDatabase[shortURL];
+  if (!user || user.id !== urlObj.userID) {
+    return res.status(401).send("You need to login or register to access this page!")
+  }
   const longURL = urlObj.longURL;
   const templateVars = { shortURL, longURL, user };
   res.render("urls_show", templateVars);
@@ -141,8 +144,15 @@ app.get("/u/:shortURL", (req, res) => {
 
 // Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
 app.post('/urls/:shortURL/delete', (req, res) => {
-  delete urlDatabase[req.params.shortURL];
-  res.redirect('/urls');
+  const userID = req.cookies["user_id"];
+  const userUrls = urlsForUser(userID);
+  if (Object.keys(userUrls).includes(req.params.shortURL)) {
+    const shortURL = req.params.shortURL;
+    delete urlDatabase[shortURL];
+    res.redirect('/urls');
+  } else {
+    res.status(401).send('You are not authorized!');
+  }
 });
 
 // Edit a URL from the database
@@ -150,7 +160,13 @@ app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
   urlDatabase[shortURL] = {longURL, userID: req.cookies['user_id']};
-  res.redirect('/urls');
+  const userID = req.cookies["user_id"];
+  const userUrls = urlsForUser(userID);
+  if (Object.keys(userUrls).includes(shortURL)) {
+    res.redirect('/urls');
+  } else {
+    res.status(401).send('You are not authorized!');
+  }
 });
 
 // Create a GET /login endpoint that responds with the login form template
@@ -178,7 +194,7 @@ app.post('/login', (req, res) => {
 // Implement the /logout endpoint to clear the user_id cookie
 app.post('/logout', (req, res) => {
   res.clearCookie('user_id');
-  res.redirect("/urls");
+  res.redirect("/login");
 });
 
 // Create a route for registration page
