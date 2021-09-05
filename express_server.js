@@ -13,7 +13,6 @@ app.use(cookieSession({
 }));
 
 const PORT = 8080;
-
 app.set("view engine", "ejs");
 
 const urlDatabase = {
@@ -26,15 +25,14 @@ const users = {
   "userRandomID": {
     id: "userRandomID",
     email: "a@a.com",
-    password: "$2a$10$mArjdcTS/kygjMZ8sKtNbO4a91EXfvnENQi2O6dBFnvyvNYXXPEKe" // purple-monkey-dinosaur
+    password: bcrypt.hashSync("purple-monkey-dinosaur", 10)
   },
   "user2RandomID": {
     id: "user2RandomID",
     email: "b@b.com",
-    password: "$2a$10$TzQURPtWf78ulUoc/IrxqusOIzVpL38HZVciiHCa.11kWD/swHegG" // dishwasher-funk
+    password: bcrypt.hashSync("dishwasher-funk", 10)
   }
 };
-
 
 app.get("/", (req, res) => {
   res.send("Hello!");

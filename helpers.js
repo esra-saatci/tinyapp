@@ -12,7 +12,6 @@ const findUserByEmail = function(userEmail, objDatabase) {
 
 // Create a function to return the URLs where the userID is equal to the id of the currently logged-in user
 const urlsForUser = function(userID, urlDatabase) {
-  console.log(urlDatabase);
   const userURL = {};
   for (const shortURL in urlDatabase) {
     if (urlDatabase[shortURL].userID === userID) {
