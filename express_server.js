@@ -1,12 +1,16 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session')
 const bcrypt = require('bcryptjs');
 
 
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookieParser());
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key1', 'key2']
+}));
+
 const PORT = 8080;
 
 app.set("view engine", "ejs");
@@ -85,7 +89,7 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const userID = req.cookies['user_id'];
+  const userID = req.session.user_id;
   const user = users[userID];
   let templateVars = { urls:urlsForUser(userID), user };
   
@@ -97,19 +101,19 @@ app.get("/urls", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   if (!userID) {
     return res.status(403).send("You need to login or register to access this page!");
   }
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   res.render("urls_new", templateVars);
 });
 
 // Log the POST request body to the console
 app.post('/urls/new', (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   if (!userID) {
     return res.redirect('/login');
   }
@@ -122,7 +126,7 @@ app.post('/urls/new', (req, res) => {
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   const user = users[userID];
   const shortURL = req.params.shortURL;
   const urlObj = urlDatabase[shortURL];
@@ -147,7 +151,7 @@ app.get("/u/:shortURL", (req, res) => {
 
 // Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
 app.post('/urls/:shortURL/delete', (req, res) => {
-  const userID = req.cookies["user_id"];
+  const userID = req.session.user_id;
   const userUrls = urlsForUser(userID);
   if (Object.keys(userUrls).includes(req.params.shortURL)) {
     const shortURL = req.params.shortURL;
@@ -162,8 +166,8 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 app.post("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
-  urlDatabase[shortURL] = {longURL, userID: req.cookies['user_id']};
-  const userID = req.cookies["user_id"];
+  urlDatabase[shortURL] = {longURL, userID: req.session.user_id};
+  const userID = req.session.user_id;
   const userUrls = urlsForUser(userID);
   if (Object.keys(userUrls).includes(shortURL)) {
     res.redirect('/urls');
@@ -175,7 +179,7 @@ app.post("/urls/:shortURL", (req, res) => {
 // Create a GET /login endpoint that responds with the login form template
 app.get('/login', (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   res.render('urls_login', templateVars);
 });
@@ -189,21 +193,21 @@ app.post('/login', (req, res) => {
   } else if (!checkPassword(user, password)) {
     res.status(403).send("Invalid username or password!");
   } else {
-    res.cookie('user_id', user.id);
+    req.session.user_id =user.id;
     res.redirect("/urls");
   }
 });
 
 // Implement the /logout endpoint to clear the user_id cookie
 app.post('/logout', (req, res) => {
-  res.clearCookie('user_id');
+  req.session.user_id = null;
   res.redirect("/login");
 });
 
 // Create a route for registration page
 app.get('/register', (req, res) => {
   const templateVars = {
-    user: users[req.cookies["user_id"]],
+    user: users[req.session.user_id],
   };
   res.render('urls_register', templateVars);
 });
@@ -228,7 +232,7 @@ app.post('/register', (req, res) => {
   };
   console.log(users);
  
-  res.cookie('user_id', newUserID);
+  req.session.user_id = newUserID;
   res.redirect('/urls');
 });
 
