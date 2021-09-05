@@ -2,6 +2,8 @@ const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcryptjs');
+
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieParser());
@@ -19,14 +21,15 @@ const users = {
   "userRandomID": {
     id: "userRandomID",
     email: "a@a.com",
-    password: "111"
+    password: "$2a$10$mArjdcTS/kygjMZ8sKtNbO4a91EXfvnENQi2O6dBFnvyvNYXXPEKe" // purple-monkey-dinosaur
   },
   "user2RandomID": {
     id: "user2RandomID",
     email: "b@b.com",
-    password: "111"
+    password: "$2a$10$TzQURPtWf78ulUoc/IrxqusOIzVpL38HZVciiHCa.11kWD/swHegG" // dishwasher-funk
   }
 };
+
 
 const urlsForUser = function(userID) {
   const userURL = {};
@@ -62,7 +65,7 @@ const findUserByEmail = function(userEmail, objDatabase) {
 
 // Create a password lookup helper function to keep the code DRY
 const checkPassword = (user, password) => {
-  if (user.password === password) {
+  if (bcrypt.compareSync(password, user.password)) {
     return true;
   } else {
     return false;
@@ -124,7 +127,7 @@ app.get("/urls/:shortURL", (req, res) => {
   const shortURL = req.params.shortURL;
   const urlObj = urlDatabase[shortURL];
   if (!user || user.id !== urlObj.userID) {
-    return res.status(401).send("You need to login or register to access this page!")
+    return res.status(401).send("You need to login or register to access this page!");
   }
   const longURL = urlObj.longURL;
   const templateVars = { shortURL, longURL, user };
@@ -210,6 +213,7 @@ app.get('/register', (req, res) => {
 app.post('/register', (req, res) => {
   const newUserEm = req.body.email;
   const newUserPw = req.body.password;
+  const hashedPassword = bcrypt.hashSync(newUserPw, 10);
   if (!newUserEm || !newUserPw) {
     return res.status(400).send('Please enter a valid email address and password! ⛔');
   } else if (findUserByEmail(newUserEm, users)) {
@@ -220,8 +224,9 @@ app.post('/register', (req, res) => {
   users[newUserID] = {
     id: newUserID,
     email: newUserEm,
-    password: newUserPw
+    password: hashedPassword
   };
+  console.log(users);
  
   res.cookie('user_id', newUserID);
   res.redirect('/urls');
