@@ -1,8 +1,9 @@
 const express = require("express");
 const app = express();
 const bodyParser = require("body-parser");
-const cookieSession = require('cookie-session')
+const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+const {findUserByEmail, urlsForUser, generateRandomString, checkPassword} = require('./helpers');
 
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -35,47 +36,6 @@ const users = {
 };
 
 
-const urlsForUser = function(userID) {
-  const userURL = {};
-  for (const shortURL in urlDatabase) {
-    if (urlDatabase[shortURL].userID === userID) {
-      userURL[shortURL] = urlDatabase[shortURL];
-    }
-  }
-  return userURL;
-};
-
-
-// Implement function to generate random string for short URLs
-// Declare all characters
-const generateRandomString = function() {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const charLen = characters.length;
-  for (let i = 0; i < 6; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charLen));
-  }
-  return result;
-};
-
-// Create an email lookup helper function to keep the code DRY
-const findUserByEmail = function(userEmail, objDatabase) {
-  for (const user in objDatabase) {
-    if (objDatabase[user].email === userEmail) {
-      return (objDatabase[user]);
-    }
-  }
-};
-
-// Create a password lookup helper function to keep the code DRY
-const checkPassword = (user, password) => {
-  if (bcrypt.compareSync(password, user.password)) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
 app.get("/", (req, res) => {
   res.send("Hello!");
 });
@@ -91,12 +51,12 @@ app.get("/hello", (req, res) => {
 app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
   const user = users[userID];
-  let templateVars = { urls:urlsForUser(userID), user };
+  let templateVars = { urls:urlsForUser(userID, urlDatabase), user };
   
   if (templateVars.user) {
     res.render("urls_index", templateVars);
   } else {
-    res.status(400).send("You need to login or register to access this page!");
+    res.status(403).send("You need to login or register to access this page!");
   }
 });
 
@@ -119,7 +79,6 @@ app.post('/urls/new', (req, res) => {
   }
 
   const longURL = req.body.longURL;
-  console.log(req.body);
   let shortURL = generateRandomString();
   urlDatabase[shortURL] = { longURL, userID };
   res.redirect(`/urls/${shortURL}`);
@@ -152,7 +111,7 @@ app.get("/u/:shortURL", (req, res) => {
 // Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
 app.post('/urls/:shortURL/delete', (req, res) => {
   const userID = req.session.user_id;
-  const userUrls = urlsForUser(userID);
+  const userUrls = urlsForUser(userID, urlDatabase);
   if (Object.keys(userUrls).includes(req.params.shortURL)) {
     const shortURL = req.params.shortURL;
     delete urlDatabase[shortURL];
@@ -168,7 +127,7 @@ app.post("/urls/:shortURL", (req, res) => {
   const longURL = req.body.longURL;
   urlDatabase[shortURL] = {longURL, userID: req.session.user_id};
   const userID = req.session.user_id;
-  const userUrls = urlsForUser(userID);
+  const userUrls = urlsForUser(userID, urlDatabase);
   if (Object.keys(userUrls).includes(shortURL)) {
     res.redirect('/urls');
   } else {
@@ -193,7 +152,7 @@ app.post('/login', (req, res) => {
   } else if (!checkPassword(user, password)) {
     res.status(403).send("Invalid username or password!");
   } else {
-    req.session.user_id =user.id;
+    req.session.user_id = user.id;
     res.redirect("/urls");
   }
 });
@@ -230,13 +189,12 @@ app.post('/register', (req, res) => {
     email: newUserEm,
     password: hashedPassword
   };
-  console.log(users);
  
   req.session.user_id = newUserID;
   res.redirect('/urls');
 });
 
-
+// Set port to listen (via Express)
 app.listen(PORT, () => {
   console.log(`Example app listening on port ${PORT}!`);
 });
