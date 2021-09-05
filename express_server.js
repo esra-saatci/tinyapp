@@ -1,24 +1,30 @@
 const express = require("express");
-const app = express();
 const bodyParser = require("body-parser");
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
+
+
+const app = express();
 const {findUserByEmail, urlsForUser, generateRandomString, checkPassword} = require('./helpers');
 
 
+const PORT = 8080;
+
+
+app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cookieSession({
   name: 'session',
   keys: ['key1', 'key2']
 }));
 
-const PORT = 8080;
-app.set("view engine", "ejs");
 
+// Database that holds hard-coded info of the users
 const urlDatabase = {
   b6UTxQ: { longURL: "https://www.tsn.ca", userID: "userRandomID" },
   i3BoGr: { longURL: "https://www.google.ca", userID: "user2RandomID" }
 };
+
 
 // Create a users object to store and access the users in the app
 const users = {
@@ -38,14 +44,21 @@ app.get("/", (req, res) => {
   res.send("Hello!");
 });
 
+
+
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
+
+
 
 app.get("/hello", (req, res) => {
   res.send("<html><body>Hello <b>World</b></body></html>\n");
 });
 
+
+
+//GET Route handler for the /URLS page
 app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
   const user = users[userID];
@@ -58,6 +71,9 @@ app.get("/urls", (req, res) => {
   }
 });
 
+
+
+// GET route for the new URL form
 app.get("/urls/new", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
@@ -69,7 +85,9 @@ app.get("/urls/new", (req, res) => {
   res.render("urls_new", templateVars);
 });
 
-// Log the POST request body to the console
+
+
+// Restricting unlogged users to see urls/new page and redirecting tem to the login page
 app.post('/urls/new', (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
@@ -82,6 +100,9 @@ app.post('/urls/new', (req, res) => {
   res.redirect(`/urls/${shortURL}`);
 });
 
+
+
+//POST route that makes update to my URLS
 app.get("/urls/:shortURL", (req, res) => {
   const userID = req.session.user_id;
   const user = users[userID];
@@ -95,29 +116,7 @@ app.get("/urls/:shortURL", (req, res) => {
   res.render("urls_show", templateVars);
 });
 
-app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL].longURL;
-  // Send 404 status code if a client requests a non-existent shortURL
-  if (longURL === undefined) {
-    res.status(404);
-    res.send('This URL is invalid!');
-  } else {
-    res.redirect(longURL);
-  }
-});
 
-// Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
-app.post('/urls/:shortURL/delete', (req, res) => {
-  const userID = req.session.user_id;
-  const userUrls = urlsForUser(userID, urlDatabase);
-  if (Object.keys(userUrls).includes(req.params.shortURL)) {
-    const shortURL = req.params.shortURL;
-    delete urlDatabase[shortURL];
-    res.redirect('/urls');
-  } else {
-    res.status(401).send('You are not authorized!');
-  }
-});
 
 // Edit a URL from the database
 app.post("/urls/:shortURL", (req, res) => {
@@ -133,6 +132,37 @@ app.post("/urls/:shortURL", (req, res) => {
   }
 });
 
+
+
+// GET Route that redirects shortURLs
+app.get("/u/:shortURL", (req, res) => {
+  const longURL = urlDatabase[req.params.shortURL].longURL;
+  // Send 404 status code if a client requests a non-existent shortURL
+  if (longURL === undefined) {
+    res.status(404);
+    res.send('This URL is invalid!');
+  } else {
+    res.redirect(longURL);
+  }
+});
+
+
+
+// Delete a URL from the database and redirect the client back to the urls_index page ("/urls")
+app.post('/urls/:shortURL/delete', (req, res) => {
+  const userID = req.session.user_id;
+  const userUrls = urlsForUser(userID, urlDatabase);
+  if (Object.keys(userUrls).includes(req.params.shortURL)) {
+    const shortURL = req.params.shortURL;
+    delete urlDatabase[shortURL];
+    res.redirect('/urls');
+  } else {
+    res.status(401).send('You are not authorized!');
+  }
+});
+
+
+
 // Create a GET /login endpoint that responds with the login form template
 app.get('/login', (req, res) => {
   const templateVars = {
@@ -140,6 +170,8 @@ app.get('/login', (req, res) => {
   };
   res.render('urls_login', templateVars);
 });
+
+
 
 // Add an endpoint to handle a POST to /login
 app.post('/login', (req, res) => {
@@ -155,11 +187,15 @@ app.post('/login', (req, res) => {
   }
 });
 
+
+
 // Implement the /logout endpoint to clear the user_id cookie
 app.post('/logout', (req, res) => {
   req.session.user_id = null;
   res.redirect("/login");
 });
+
+
 
 // Create a route for registration page
 app.get('/register', (req, res) => {
@@ -169,12 +205,15 @@ app.get('/register', (req, res) => {
   res.render('urls_register', templateVars);
 });
 
+
+
 // Create an endpoint that handles the registration form data
 // Handle registration errors
 app.post('/register', (req, res) => {
   const newUserEm = req.body.email;
   const newUserPw = req.body.password;
   const hashedPassword = bcrypt.hashSync(newUserPw, 10);
+
   if (!newUserEm || !newUserPw) {
     return res.status(400).send('Please enter a valid email address and password! ⛔');
   } else if (findUserByEmail(newUserEm, users)) {
@@ -191,6 +230,8 @@ app.post('/register', (req, res) => {
   req.session.user_id = newUserID;
   res.redirect('/urls');
 });
+
+
 
 // Set port to listen (via Express)
 app.listen(PORT, () => {
